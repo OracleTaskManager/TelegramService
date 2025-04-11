@@ -3,6 +3,8 @@ package com.Oracle.TelegramService;
 import com.Oracle.TelegramService.data.AuthResponse;
 import com.Oracle.TelegramService.data.TelegramLoginRequest;
 import com.Oracle.TelegramService.service.SessionCache;
+import com.Oracle.TelegramService.service.TelegramCommandService;
+import com.Oracle.TelegramService.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -22,18 +24,20 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
     @Autowired
     private SessionCache sessionCache;
 
+    @Autowired
+    private TelegramCommandService telegramCommandService;
+
+    @Autowired
+    private TokenService tokenService;
+
     @Value("${telegram.bot.username}")
     private String botUsername;
-
     @Value("${telegram.bot.token}")
     private String botToken;
-
     @Value("${telegram.bot.secret}")
     private String botSecret;
-
     @Value("${auth.service.base.url}")
     private String authServiceBaseUrl;
-
     @Value("${auth.service.telegram-login-path}")
     private String telegramLoginPath;
 
@@ -50,13 +54,38 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-            handleMessage(
-                    update.getMessage().getChatId(),
-                    update.getMessage().getText()
-            );
+            Long chatId = update.getMessage().getChatId();
+            String messageText = update.getMessage().getText();
+
+            try {
+                // Comandos que no requieren autenticación
+                if (messageText.equals("/start")) {
+                    handleStartCommand(chatId);
+                    return;
+                }
+
+                if (messageText.equals("/login")) {
+                    handleLoginCommand(chatId);
+                    return;
+                }
+
+                // Cualquier otro comando
+                if (sessionCache.getToken(chatId) == null) {
+                    sendTextMessage(chatId, "⚠️ Debes iniciar sesión primero usando /login");
+                    return;
+                }
+
+                // Procesar comandos según rol
+                String role = tokenService.getRole(sessionCache.getToken(chatId));
+                SendMessage response = telegramCommandService.createResponseForRole(chatId, messageText);
+                execute(response);
+
+            } catch (TelegramApiException e) {
+                System.err.println("Error al procesar comando: " + e.getMessage());
+                sendTextMessage(chatId, "⚠️ Error al procesar tu solicitud");
+            }
         }
     }
-
     private void handleMessage(Long chatId, String text) {
         switch (text) {
             case "/start":

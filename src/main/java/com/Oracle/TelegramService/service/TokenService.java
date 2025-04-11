@@ -34,4 +34,25 @@ public class TokenService {
         return id;
     }
 
+    public String getRole(String token){
+        if(token == null){
+            throw new RuntimeException();
+        }
+        DecodedJWT verifier = null;
+        try{
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            verifier = JWT.require(algorithm)
+                    .withIssuer("Oracle Project")
+                    .build()
+                    .verify(token);
+        }catch(JWTVerificationException e){
+            System.out.println(e.toString());
+        }
+        String role = verifier.getClaim("role").asString();
+        if(role == null){
+            throw new RuntimeException("Invalid verifier");
+        }
+        return role;
+    }
+
 }
