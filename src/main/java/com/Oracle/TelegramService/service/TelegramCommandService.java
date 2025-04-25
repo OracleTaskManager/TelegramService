@@ -56,6 +56,8 @@ public class TelegramCommandService {
                 return taskIntegrationService.handleAssignTaskToUser(chatId, Arrays.copyOfRange(args, 1, args.length));
             case "/menu":
                 return buildManagerMenu(chatId);
+            case "/mytasks":
+                return taskIntegrationService.handleGetMyTasks(chatId);
         }
         return message;
     }
@@ -82,9 +84,15 @@ public class TelegramCommandService {
         row3.add("Assign Task");
         row3.add("Start Sprint");
 
+        KeyboardRow row4 = new KeyboardRow();
+        row4.add("My Tasks");
+
+
+
         rows.add(row1);
         rows.add(row2);
         rows.add(row3);
+        rows.add(row4);
 
         keyboard.setKeyboard(rows);
         keyboard.setResizeKeyboard(true);
@@ -102,6 +110,9 @@ public class TelegramCommandService {
                 break;
             case "/changetaskstatus":
                 return taskIntegrationService.handleUpdateTaskStatus(chatId, Arrays.copyOfRange(args, 1, args.length));
+
+                case "/mytasks":
+                return taskIntegrationService.handleGetMyTasks(chatId);
             default:
                 message.setText("Comando no reconocido");
         }

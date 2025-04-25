@@ -57,5 +57,9 @@ public interface TaskServiceClient {
             @RequestHeader("Authorization") String token,
             @RequestBody EpicRegister epicRegister
     );
+    @GetMapping("/tasks/my-tasks")
+    ResponseEntity<List<TaskResponse>> getTasksByUser(
+            @RequestHeader("Authorization") String token
+    );
 
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
 import java.sql.Date;
+import java.util.List;
 
 @Service
 public class TaskIntegrationService {
@@ -206,6 +207,36 @@ public class TaskIntegrationService {
 
         } catch (IllegalArgumentException e) {
             return new SendMessage(chatid.toString(), "Error: " + e.getMessage());
+        }
+    }
+
+    public SendMessage handleGetMyTasks(Long chatId) {
+        String token = sessionCache.getToken(chatId);
+        if (token == null) {
+            return new SendMessage(chatId.toString(), "Please login first.");
+        }
+
+        try {
+            ResponseEntity<List<TaskResponse>> response = taskServiceClient.getTasksByUser("Bearer " + token);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                List<TaskResponse> tasks = response.getBody();
+                if (tasks == null || tasks.isEmpty()) {
+                    return new SendMessage(chatId.toString(), "No tasks found.");
+                }
+
+                StringBuilder message = new StringBuilder("Your tasks:\n");
+                for (TaskResponse task : tasks) {
+                    message.append("- ").append(task.title()).append(": ").append(task.description()).append("\n");
+                }
+
+                return new SendMessage(chatId.toString(), message.toString());
+            } else {
+                return new SendMessage(chatId.toString(), "Failed to get tasks: " + response.getStatusCode());
+            }
+
+        } catch (Exception e) {
+            return new SendMessage(chatId.toString(), "Error: " + e.getMessage());
         }
     }
 
