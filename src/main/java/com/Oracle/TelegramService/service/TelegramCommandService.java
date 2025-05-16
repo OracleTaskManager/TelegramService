@@ -58,6 +58,11 @@ public class TelegramCommandService {
                 return buildManagerMenu(chatId);
             case "/mytasks":
                 return taskIntegrationService.handleGetMyTasks(chatId);
+            case "/tasksCompletedPerSprint":
+                return taskIntegrationService.handleShowCompletedTasksPerSprint(chatId, Arrays.copyOfRange(args, 1, args.length));
+
+            case "/tasksCompletedPerUserPerSprint":
+                return taskIntegrationService.handleShowCompletedTasksPerUserPerSprint(chatId, Arrays.copyOfRange(args, 1, args.length));
         }
         return message;
     }
@@ -86,13 +91,17 @@ public class TelegramCommandService {
 
         KeyboardRow row4 = new KeyboardRow();
         row4.add("My Tasks");
+        row4.add("Tasks Completed Per Sprint");
 
+        KeyboardRow row5 = new KeyboardRow();
+        row5.add("Tasks Completed Per Sprint Per User");
 
 
         rows.add(row1);
         rows.add(row2);
         rows.add(row3);
         rows.add(row4);
+        rows.add(row5);
 
         keyboard.setKeyboard(rows);
         keyboard.setResizeKeyboard(true);

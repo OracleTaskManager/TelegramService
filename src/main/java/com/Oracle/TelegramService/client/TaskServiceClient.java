@@ -62,4 +62,9 @@ public interface TaskServiceClient {
             @RequestHeader("Authorization") String token
     );
 
+    @GetMapping("/reports/tasks/completed/sprint/{sprint_Id}/users")
+    ResponseEntity<List<UserTaskCompletedReport>> getTasksCompletedPerSprint(@PathVariable Long sprintId);
+
+    @GetMapping("/report/tasks/completed/sprints/user/{userId}")
+    ResponseEntity<List<UserTaskCompletedReport>> getTasksCompletedByUserPerSprint(@PathVariable Long userId);
 }

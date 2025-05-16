@@ -2,13 +2,19 @@ package com.Oracle.TelegramService.service;
 
 import com.Oracle.TelegramService.client.TaskServiceClient;
 import com.Oracle.TelegramService.data.tasks.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
 import java.sql.Date;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @Service
 public class TaskIntegrationService {
@@ -239,6 +245,112 @@ public class TaskIntegrationService {
 
         } catch (Exception e) {
             return new SendMessage(chatId.toString(), "Error: " + e.getMessage());
+        }
+    }
+    public SendMessage handleShowCompletedTasksPerUserPerSprint(Long chatid, String[] args) {
+        String token = sessionCache.getToken(chatid);
+        if (token == null) {
+            return new SendMessage(chatid.toString(), "Please login first.");
+        }
+
+        try {
+            if (args.length < 1) {
+                return new SendMessage(chatid.toString(),
+                        "Incorrect format. Please use /completed_tasks_user <userId>");
+            }
+
+            Long userId = Long.parseLong(args[0]);
+
+            ResponseEntity<List<UserTaskCompletedReport>> response = taskServiceClient
+                    .getTasksCompletedByUserPerSprint(userId);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List<UserTaskCompletedReport> reportList = response.getBody();
+
+                if (reportList.isEmpty()) {
+                    return new SendMessage(chatid.toString(), "No completed tasks found for the user.");
+                }
+
+                StringBuilder message = new StringBuilder();
+                for (UserTaskCompletedReport report : reportList) {
+                    message.append("👤 *User:* ").append(report.getUserName())
+                            .append(" (ID: ").append(report.getUserId()).append(")\n")
+                            .append("📦 *Sprint:* ").append(report.getSprintName())
+                            .append(" (ID: ").append(report.getSprintId()).append(")\n")
+                            .append("✅ *Total Tasks Completed:* ").append(report.getTotalTasksCompleted()).append("\n\n");
+
+                    for (UserTaskCompletedReport.CompletedTask task : report.getCompletedTasks()) {
+                        message.append("📝 *Task:* ").append(task.getTaskTitle()).append(" (ID: ").append(task.getTaskId()).append(")\n")
+                                .append("📅 Date: ").append(task.getCompletionDate()).append("\n")
+                                .append("⏱ Hours: ").append(task.getRealHours()).append("\n\n");
+                    }
+
+                    message.append("——————————————————————\n\n");
+                }
+
+                SendMessage sendMessage = new SendMessage(chatid.toString(), message.toString());
+                sendMessage.setParseMode("Markdown"); // Optional: to enable bold formatting
+                return sendMessage;
+            } else {
+                return new SendMessage(chatid.toString(), "Could not retrieve the report: " + response.getStatusCode());
+            }
+
+        } catch (NumberFormatException e) {
+            return new SendMessage(chatid.toString(), "Invalid user ID format.");
+        } catch (Exception e) {
+            return new SendMessage(chatid.toString(), "Error: " + e.getMessage());
+        }
+    }
+
+    public SendMessage handleShowCompletedTasksPerSprint(Long chatid, String[] args) {
+        String token = sessionCache.getToken(chatid);
+        if (token == null) {
+            return new SendMessage(chatid.toString(), "Please login first.");
+        }
+
+        try {
+            if (args.length < 1) {
+                return new SendMessage(chatid.toString(),
+                        "Incorrect format. Please use /completed_tasks_sprint <sprintId>");
+            }
+
+            Long sprintId = Long.parseLong(args[0]);
+
+            ResponseEntity<List<UserTaskCompletedReport>> response =
+                    taskServiceClient.getTasksCompletedPerSprint(sprintId);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List<UserTaskCompletedReport> reportList = response.getBody();
+
+                List<UserTaskCompletedReport.CompletedTask> allTasks = reportList.stream()
+                        .flatMap(report -> report.getCompletedTasks().stream())
+                        .toList();
+
+                if (allTasks.isEmpty()) {
+                    return new SendMessage(chatid.toString(), "No completed tasks found for this sprint.");
+                }
+
+                StringBuilder message = new StringBuilder("📊 *Tasks Completed in Sprint " + sprintId + "*\n\n");
+
+                for (UserTaskCompletedReport.CompletedTask task : allTasks) {
+                    message.append("📝 *Task:* ").append(task.getTaskTitle())
+                            .append(" (ID: ").append(task.getTaskId()).append(")\n")
+                            .append("📅 Date: ").append(task.getCompletionDate()).append("\n")
+                            .append("⏱ Hours: ").append(task.getRealHours()).append("\n\n");
+                }
+
+                SendMessage sendMessage = new SendMessage(chatid.toString(), message.toString());
+                sendMessage.setParseMode("Markdown");
+                return sendMessage;
+
+            } else {
+                return new SendMessage(chatid.toString(), "Could not retrieve the report: " + response.getStatusCode());
+            }
+
+        } catch (NumberFormatException e) {
+            return new SendMessage(chatid.toString(), "Invalid sprint ID format.");
+        } catch (Exception e) {
+            return new SendMessage(chatid.toString(), "Error: " + e.getMessage());
         }
     }
 
