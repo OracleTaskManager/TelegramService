@@ -104,7 +104,9 @@ public class TaskIntegrationService {
                     type,
                     Date.valueOf(args[5]),
                     Date.valueOf(args[6]),
-                    Integer.parseInt(args[7])
+                    Integer.parseInt(args[7]),
+                    Integer.parseInt(args[8]),
+                    Integer.parseInt(args[9])
             );
 
             ResponseEntity<TaskResponse> taskResponse = taskServiceClient.createTask("Bearer " + token, taskRegister);

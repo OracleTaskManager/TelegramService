@@ -6,12 +6,15 @@ public record TaskResponse(
         Long id,
         String title,
         String description,
-        Long epicId,
+        Long epic_id,
         String priority,
         String status,
         String type,
-        Date estimatedDeadline,
-        Date realDeadline,
-        int userPoints
+        Date estimated_deadline,
+        Date real_deadline,
+        Integer realHours,
+        Integer estimatedHours,
+        Integer user_points
 ) {
+
 }

@@ -86,6 +86,7 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
             }
         }
     }
+
     private void handleMessage(Long chatId, String text) {
         switch (text) {
             case "/start":
