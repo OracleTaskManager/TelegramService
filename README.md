@@ -13,7 +13,7 @@ Este repositorio contiene el microservicio que integra el sistema Oracle Task Ma
 #### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/tuOrganizacion/TelegramService.git
+git clone https://github.com/OracleTaskManager/TelegramService.git
 cd TelegramService
 ```
 
