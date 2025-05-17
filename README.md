@@ -43,18 +43,3 @@ mvn spring-boot:run
 #### 4. Verificación
 
 * API: [http://localhost:8082](http://localhost:8082)
-* Swagger UI: [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
-
----
-
-### Producción
-
-| Aspecto              | Producción                                                                                                     |
-| -------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Swagger              | [http://140.84.189.81/swagger-telegram/swagger-ui.html](http://140.84.189.81/swagger-telegram/swagger-ui.html) |
-| Prefijo de endpoints | `/api/telegram/...`                                                                                            |
-| Despliegue           | GitHub Actions (`build-push-telegram.yml`) automatiza todo                                                     |
-
----
-
-¿Quieres que también te genere los archivos `README.md` como archivos descargables o prefieres copiar y pegar directamente?
