@@ -29,6 +29,7 @@ Variables de entorno necesarias:
 
 * `TELEGRAM_BOT_SECRET`
 * `JWT_SECRET_ORACLE`
+```
 
 #### 3. Ejecutar
 
