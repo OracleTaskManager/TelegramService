@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 
-
 @Service
 public class TelegramCommandService {
 
@@ -21,12 +20,35 @@ public class TelegramCommandService {
     private TaskIntegrationService taskIntegrationService;
 
     @Autowired
+    private AuthIntegrationService authIntegrationService;
+
+    @Autowired
     private SessionCache sessionCache;
 
-    public SendMessage createResponseForRole(Long chatId, String command) {
-        String token = sessionCache.getToken(chatId);
-        String role = tokenService.getRole(token);
+    public SendMessage processCommand(Long chatId, String command) {
+        String[] args = command.split(" ");
+        String baseCommand = args[0];
 
+        // Comandos que no requieren autenticación
+        switch (baseCommand) {
+            case "/start":
+                return authIntegrationService.handleStart(chatId);
+            case "/login":
+                return authIntegrationService.handleLogin(chatId);
+        }
+
+        // Verificar autenticación para otros comandos
+        String token = sessionCache.getToken(chatId);
+        if (token == null) {
+            return new SendMessage(chatId.toString(), "⚠️ Debes iniciar sesión primero usando /login");
+        }
+
+        // Procesar comandos según rol
+        String role = tokenService.getRole(token);
+        return createResponseForRole(chatId, command, role);
+    }
+
+    private SendMessage createResponseForRole(Long chatId, String command, String role) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
 
@@ -60,11 +82,12 @@ public class TelegramCommandService {
                 return taskIntegrationService.handleGetMyTasks(chatId);
             case "/tasksCompletedPerSprint":
                 return taskIntegrationService.handleShowCompletedTasksPerSprint(chatId, Arrays.copyOfRange(args, 1, args.length));
-
             case "/tasksCompletedPerUserPerSprint":
                 return taskIntegrationService.handleShowCompletedTasksPerUserPerSprint(chatId, Arrays.copyOfRange(args, 1, args.length));
+            default:
+                message.setText("Comando no reconocido para Manager");
+                return message;
         }
-        return message;
     }
 
     private SendMessage buildManagerMenu(Long chatId) {
@@ -96,7 +119,6 @@ public class TelegramCommandService {
         KeyboardRow row5 = new KeyboardRow();
         row5.add("Tasks Completed Per Sprint Per User");
 
-
         rows.add(row1);
         rows.add(row2);
         rows.add(row3);
@@ -119,11 +141,10 @@ public class TelegramCommandService {
                 break;
             case "/changetaskstatus":
                 return taskIntegrationService.handleUpdateTaskStatus(chatId, Arrays.copyOfRange(args, 1, args.length));
-
-                case "/mytasks":
+            case "/mytasks":
                 return taskIntegrationService.handleGetMyTasks(chatId);
             default:
-                message.setText("Comando no reconocido");
+                message.setText("Comando no reconocido para Developer");
         }
         return message;
     }
@@ -142,5 +163,4 @@ public class TelegramCommandService {
         keyboardMarkup.setResizeKeyboard(true);
         return keyboardMarkup;
     }
-
 }

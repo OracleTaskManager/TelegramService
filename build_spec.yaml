@@ -1,0 +1,176 @@
+version: 0.1
+component: build
+timeoutInSeconds: 1200
+shell: bash
+
+env:
+  variables:
+    REGISTRY: "mx-queretaro-1.ocir.io"
+    NAMESPACE: "axfvmmw9g9lu"
+    REPOSITORY: "taskmanager"
+    IMAGE_NAME: "telegram-service"
+
+  exportedVariables:
+    - IMAGE_FULL_NAME
+    - VERSION
+
+steps:
+  - type: Command
+    name: "Install Oracle Java 21"
+    timeoutInSeconds: 600
+    command: |
+      echo "🔧 Installing Oracle Java 21..."
+      
+      cd /opt
+      
+      # Descargar Oracle JDK 21 desde Oracle
+      wget -q --no-check-certificate https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz -O oracle-jdk-21.tar.gz
+      
+      if [ -f "oracle-jdk-21.tar.gz" ]; then
+        echo "✅ Oracle JDK 21 downloaded successfully"
+        tar -xzf oracle-jdk-21.tar.gz
+        JAVA21_DIR=$(find /opt -maxdepth 1 -name "jdk-21*" -type d | head -1)
+        if [ ! -z "$JAVA21_DIR" ]; then
+          ln -sf "$JAVA21_DIR" /opt/java21
+          echo "✅ Oracle Java 21 installed: $JAVA21_DIR"
+        else
+          echo "⚠️ Oracle JDK extraction failed, trying alternative..."
+          # Fallback a Amazon Corretto 21
+          wget -q https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.tar.gz
+          tar -xzf amazon-corretto-21-x64-linux-jdk.tar.gz
+          JAVA21_DIR=$(find /opt -maxdepth 1 -name "amazon-corretto-21*" -type d | head -1)
+          ln -sf "$JAVA21_DIR" /opt/java21
+          echo "✅ Amazon Corretto 21 installed as fallback: $JAVA21_DIR"
+        fi
+      else
+        echo "❌ Oracle JDK download failed, using Amazon Corretto 21..."
+        wget -q https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.tar.gz
+        tar -xzf amazon-corretto-21-x64-linux-jdk.tar.gz
+        JAVA21_DIR=$(find /opt -maxdepth 1 -name "amazon-corretto-21*" -type d | head -1)
+        ln -sf "$JAVA21_DIR" /opt/java21
+        echo "✅ Amazon Corretto 21 installed: $JAVA21_DIR"
+      fi
+      
+      echo "✅ Java 21 installation completed"
+
+  - type: Command
+    name: "Build with Maven using Java 21"
+    timeoutInSeconds: 900
+    command: |
+      # Configurar Java 21
+      export JAVA_HOME=/opt/java21
+      export PATH=$JAVA_HOME/bin:$PATH
+      
+      echo "☕ Verifying Java 21 installation:"
+      java -version
+      javac -version
+      echo "🔧 JAVA_HOME: $JAVA_HOME"
+      
+      echo "📋 Maven version:"
+      mvn -version
+      
+      echo "🚀 Building with Maven (Java 21)..."
+      
+      # Build con Java 21
+      mvn clean package -DskipTests \
+          -Dmaven.compiler.source=21 \
+          -Dmaven.compiler.target=21 \
+          -Dmaven.compiler.release=21
+      
+      echo "📦 Build completed, checking results:"
+      ls -la target/
+      
+      # Verificar que el JAR se generó
+      if [ ! -f "target/TelegramService-0.0.1-SNAPSHOT.jar" ]; then
+        echo "❌ Expected TelegramService JAR file not found!"
+        echo "📋 Searching for alternative JAR names:"
+        find target/ -name "*.jar" 2>/dev/null || echo "No JAR files found in target/"
+        exit 1
+      fi
+      
+      JAR_SIZE=$(stat -c%s "target/TelegramService-0.0.1-SNAPSHOT.jar" 2>/dev/null || stat -f%z "target/TelegramService-0.0.1-SNAPSHOT.jar")
+      echo "📦 JAR size: $JAR_SIZE bytes"
+      
+      if [ "$JAR_SIZE" -lt 1000000 ]; then
+        echo "⚠️ JAR seems small for a Spring Boot app"
+      fi
+      
+      echo "✅ Maven build successful with Java 21!"
+
+  - type: Command
+    name: "Prepare Docker build"
+    timeoutInSeconds: 120
+    command: |
+      echo "📦 Preparing Docker build context..."
+      
+      mkdir -p build
+      
+      echo "Copying TelegramService JAR to build directory..."
+      cp target/TelegramService-0.0.1-SNAPSHOT.jar build/
+      
+      echo "Build directory contents:"
+      ls -la build/
+      
+      echo "Creating Dockerfile..."
+      cat > Dockerfile << 'EOF'
+      FROM container-registry.oracle.com/graalvm/jdk:21
+      
+      # Mostrar versión de Java para verificar
+      RUN java -version
+      
+      # Directorio de trabajo en el contenedor
+      WORKDIR /TelegramService
+      
+      # Copiar el archivo JAR al contenedor
+      COPY build/TelegramService-0.0.1-SNAPSHOT.jar TelegramService.jar
+      
+      # Exponer el puerto 8083
+      EXPOSE 8083
+      
+      # Ejecutar la aplicación
+      ENTRYPOINT ["java", "-jar", "TelegramService.jar"]
+      EOF
+      
+      echo "✅ Docker build context prepared (TelegramService with Oracle Java 21)"
+
+  - type: Command
+    name: "Build Docker image"
+    timeoutInSeconds: 900
+    command: |
+      # Generar versión
+      VERSION="$(date +'%Y%m%d-%H%M%S')"
+      if [ -d ".git" ]; then
+        COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        VERSION="${VERSION}-${COMMIT_SHORT}"
+      fi
+      
+      IMAGE_TAG="${REGISTRY}/${NAMESPACE}/${REPOSITORY}/${IMAGE_NAME}:${VERSION}"
+      LATEST_TAG="${REGISTRY}/${NAMESPACE}/${REPOSITORY}/${IMAGE_NAME}:latest"
+      
+      echo "🐳 Building Docker image: ${IMAGE_TAG}"
+      
+      echo "🚀 Building Docker image..."
+      docker build --no-cache -t "${IMAGE_TAG}" -t "${LATEST_TAG}" .
+      
+      if [ $? -ne 0 ]; then
+        echo "❌ Docker build failed!"
+        exit 1
+      fi
+      
+      echo "✅ Docker image built successfully!"
+            
+      # Exportar variables para el deployment pipeline
+      export IMAGE_FULL_NAME="${IMAGE_TAG}"
+      export VERSION="${VERSION}"
+      
+      echo "============================================"
+      echo "✅ TELEGRAM SERVICE BUILD COMPLETED!"
+      echo "📦 Image: ${IMAGE_FULL_NAME}"
+      echo "🏷️ Version: ${VERSION}"
+      echo "📤 Registry: ${REGISTRY}/${NAMESPACE}/${REPOSITORY}/${IMAGE_NAME}"
+      echo "============================================"
+
+outputArtifacts:
+  - name: telegram-service-image
+    type: DOCKER_IMAGE
+    location: ${IMAGE_FULL_NAME}

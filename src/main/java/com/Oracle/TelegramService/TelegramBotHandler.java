@@ -1,15 +1,9 @@
 package com.Oracle.TelegramService;
 
-import com.Oracle.TelegramService.data.AuthResponse;
-import com.Oracle.TelegramService.data.TelegramLoginRequest;
-import com.Oracle.TelegramService.service.SessionCache;
 import com.Oracle.TelegramService.service.TelegramCommandService;
-import com.Oracle.TelegramService.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -19,27 +13,13 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 public class TelegramBotHandler extends TelegramLongPollingBot {
 
     @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private SessionCache sessionCache;
-
-    @Autowired
     private TelegramCommandService telegramCommandService;
-
-    @Autowired
-    private TokenService tokenService;
 
     @Value("${telegram.bot.username}")
     private String botUsername;
+
     @Value("${telegram.bot.token}")
     private String botToken;
-    @Value("${telegram.bot.secret}")
-    private String botSecret;
-    @Value("${auth.service.base.url}")
-    private String authServiceBaseUrl;
-    @Value("${auth.service.telegram-login-path}")
-    private String telegramLoginPath;
 
     @Override
     public String getBotUsername() {
@@ -58,26 +38,8 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
             String messageText = update.getMessage().getText();
 
             try {
-                // Comandos que no requieren autenticación
-                if (messageText.equals("/start")) {
-                    handleStartCommand(chatId);
-                    return;
-                }
-
-                if (messageText.equals("/login")) {
-                    handleLoginCommand(chatId);
-                    return;
-                }
-
-                // Cualquier otro comando
-                if (sessionCache.getToken(chatId) == null) {
-                    sendTextMessage(chatId, "⚠️ Debes iniciar sesión primero usando /login");
-                    return;
-                }
-
-                // Procesar comandos según rol
-                String role = tokenService.getRole(sessionCache.getToken(chatId));
-                SendMessage response = telegramCommandService.createResponseForRole(chatId, messageText);
+                // Delegar todo el procesamiento al TelegramCommandService
+                SendMessage response = telegramCommandService.processCommand(chatId, messageText);
                 execute(response);
 
             } catch (TelegramApiException e) {
@@ -85,53 +47,6 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
                 sendTextMessage(chatId, "⚠️ Error al procesar tu solicitud");
             }
         }
-    }
-
-    private void handleMessage(Long chatId, String text) {
-        switch (text) {
-            case "/start":
-                handleStartCommand(chatId);
-                break;
-            case "/login":
-                handleLoginCommand(chatId);
-                break;
-            default:
-                sendTextMessage(chatId, "⚠️ Comando no reconocido. Usa /start para iniciar.");
-                break;
-        }
-    }
-
-    private void handleLoginCommand(Long chatId) {
-        try {
-            System.out.println("Chat ID handleLogin: " + chatId);
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Telegram-Bot-Secret", botSecret);
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            ResponseEntity<AuthResponse> response = restTemplate.exchange(
-                    authServiceBaseUrl + telegramLoginPath,
-                    HttpMethod.POST,
-                    new HttpEntity<>(new TelegramLoginRequest(chatId), headers),
-                    AuthResponse.class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                sessionCache.save(chatId, response.getBody().jwtToken());
-                sendTextMessage(chatId, "✅ Login exitoso! Ahora puedes usar los comandos protegidos.");
-            }
-        } catch (Exception e) {
-            sendTextMessage(chatId, "⚠️ Error: " + e.getMessage());
-        }
-    }
-
-    private void handleStartCommand(Long chatId) {
-        String link = String.format("%s/link-telegram?chatId=%d", authServiceBaseUrl, chatId);
-        String message = "🔗 Para vincular tu cuenta:\n\n" +
-                "1. Visita: " + link + "\n" +
-                "2. Inicia sesión\n" +
-                "3. Confirma la vinculación\n\n" +
-                "Luego usa /login en este chat";
-        sendTextMessage(chatId, message);
     }
 
     private void sendTextMessage(Long chatId, String text) {
