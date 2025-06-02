@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 @FeignClient(name = "auth-service", url = "${auth.service.url}")
 public interface AuthServiceClient {
 
+    // Xd endpoint to get user info by token
+
     @PostMapping("/users/telegram-login")
     ResponseEntity<AuthResponse> telegramLogin(
             @RequestHeader("X-Telegram-Bot-Secret") String botSecret,
