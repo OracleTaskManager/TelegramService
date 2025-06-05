@@ -16,6 +16,7 @@ import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 @Service
 public class InteractiveTaskService {
 
@@ -49,14 +50,30 @@ public class InteractiveTaskService {
         switch (conversation.getAction()) {
             case "CREATE_SPRINT":
                 return handleCreateSprintConversation(chatId, message, conversation);
+            case "UPDATE_SPRINT":
+                return handleUpdateSprintConversation(chatId, message, conversation);
+            case "DELETE_SPRINT":
+                return handleDeleteSprintConversation(chatId, message, conversation);
             case "CREATE_EPIC":
                 return handleCreateEpicConversation(chatId, message, conversation);
+            case "UPDATE_EPIC":
+                return handleUpdateEpicConversation(chatId, message, conversation);
+            case "DELETE_EPIC":
+                return handleDeleteEpicConversation(chatId, message, conversation);
             case "CREATE_TASK":
                 return handleCreateTaskConversation(chatId, message, conversation);
+//            case "UPDATE_TASK":
+//                return handleUpdateTaskConversation(chatId, message, conversation);
+            case "DELETE_TASK":
+                return handleDeleteTaskConversation(chatId, message, conversation);
             case "ADD_TASK_TO_SPRINT":
                 return handleAddTaskToSprintConversation(chatId, message, conversation);
+            case "REMOVE_TASK_FROM_SPRINT":
+                return handleRemoveTaskFromSprintConversation(chatId, message, conversation);
             case "ASSIGN_TASK":
                 return handleAssignTaskConversation(chatId, message, conversation);
+            case "REMOVE_TASK_ASSIGNMENT":
+                return handleRemoveTaskAssignmentConversation(chatId, message, conversation);
             case "UPDATE_TASK_STATUS":
                 return handleUpdateTaskStatusConversation(chatId, message, conversation);
             case "START_SPRINT":
@@ -65,13 +82,22 @@ public class InteractiveTaskService {
                 return handleCompletedTasksSprintConversation(chatId, message, conversation);
             case "GET_COMPLETED_TASKS_USER":
                 return handleCompletedTasksUserConversation(chatId, message, conversation);
+            case "GET_SPRINT_HOURS_REPORT":
+                return handleSprintHoursReportConversation(chatId, message, conversation);
+            case "FIND_TASK_BY_ID":
+                return handleFindTaskByIdConversation(chatId, message, conversation);
+            case "FIND_TASKS_BY_STATUS":
+                return handleFindTasksByStatusConversation(chatId, message, conversation);
+            case "FIND_TASKS_BY_PRIORITY":
+                return handleFindTasksByPriorityConversation(chatId, message, conversation);
             default:
                 conversationManager.endConversation(chatId);
                 return new SendMessage(chatId.toString(), "❌ Acción no reconocida.");
         }
     }
 
-    // ========== CREATE SPRINT CONVERSATION ==========
+    // ========== SPRINT CONVERSATIONS ==========
+
     public SendMessage startCreateSprintConversation(Long chatId) {
         conversationManager.startConversation(chatId, "CREATE_SPRINT");
         return new SendMessage(chatId.toString(),
@@ -110,7 +136,6 @@ public class InteractiveTaskService {
                 }
                 conversation.addData("endDate", message);
 
-                // Crear el sprint
                 String[] args = {
                         (String) conversation.getData("name"),
                         (String) conversation.getData("startDate"),
@@ -126,7 +151,89 @@ public class InteractiveTaskService {
         }
     }
 
-    // ========== CREATE EPIC CONVERSATION ==========
+    public SendMessage startUpdateSprintConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "UPDATE_SPRINT");
+        return new SendMessage(chatId.toString(),
+                "🔄 *Actualizar Sprint*\n\n" +
+                        "Paso 1/4: ¿Cuál es el ID del sprint a actualizar?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleUpdateSprintConversation(Long chatId, String message, ConversationState conversation) {
+        switch (conversation.getStepIndex()) {
+            case 0: // Sprint ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("sprintId", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "📝 Paso 2/4: ¿Cuál será el nuevo nombre del sprint?");
+
+            case 1: // Nombre
+                conversation.addData("name", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "📅 Paso 3/4: ¿Cuál es la nueva fecha de inicio?\n" +
+                                "_Formato: YYYY-MM-DD_");
+
+            case 2: // Fecha inicio
+                if (!isValidDate(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ Fecha inválida. Usa el formato YYYY-MM-DD");
+                }
+                conversation.addData("startDate", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "📅 Paso 4/4: ¿Cuál es la nueva fecha de fin?\n" +
+                                "_Formato: YYYY-MM-DD_");
+
+            case 3: // Fecha fin
+                if (!isValidDate(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ Fecha inválida. Usa el formato YYYY-MM-DD");
+                }
+                conversation.addData("endDate", message);
+
+                String[] args = {
+                        (String) conversation.getData("sprintId"),
+                        (String) conversation.getData("name"),
+                        (String) conversation.getData("startDate"),
+                        (String) conversation.getData("endDate")
+                };
+
+                conversationManager.endConversation(chatId);
+                return taskIntegrationService.handleUpdateSprint(chatId, args);
+
+            default:
+                conversationManager.endConversation(chatId);
+                return new SendMessage(chatId.toString(), "❌ Error en la conversación.");
+        }
+    }
+
+    public SendMessage startDeleteSprintConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "DELETE_SPRINT");
+        return new SendMessage(chatId.toString(),
+                "🗑️ *Eliminar Sprint*\n\n" +
+                        "¿Cuál es el ID del sprint que deseas eliminar?\n\n" +
+                        "⚠️ *Esta acción no se puede deshacer*\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleDeleteSprintConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleDeleteSprint(chatId, args);
+    }
+
+    // ========== EPIC CONVERSATIONS ==========
+
     public SendMessage startCreateEpicConversation(Long chatId) {
         conversationManager.startConversation(chatId, "CREATE_EPIC");
         return new SendMessage(chatId.toString(),
@@ -162,7 +269,90 @@ public class InteractiveTaskService {
         }
     }
 
-    // ========== CREATE TASK CONVERSATION ==========
+    public SendMessage startUpdateEpicConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "UPDATE_EPIC");
+        return new SendMessage(chatId.toString(),
+                "🔄 *Actualizar Epic*\n\n" +
+                        "Paso 1/4: ¿Cuál es el ID del epic a actualizar?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleUpdateEpicConversation(Long chatId, String message, ConversationState conversation) {
+        switch (conversation.getStepIndex()) {
+            case 0: // Epic ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("epicId", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "📝 Paso 2/4: ¿Cuál será el nuevo título?");
+
+            case 1: // Título
+                conversation.addData("title", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "📝 Paso 3/4: ¿Cuál será la nueva descripción?");
+
+            case 2: // Descripción
+                conversation.addData("description", message);
+                conversation.nextStep();
+
+                SendMessage statusMsg = new SendMessage(chatId.toString(),
+                        "📊 Paso 4/4: ¿Cuál es el estado del epic?");
+                statusMsg.setReplyMarkup(createEpicStatusKeyboard());
+                return statusMsg;
+
+            case 3: // Estado
+                if (!isValidEpicStatus(message)) {
+                    SendMessage errorMsg = new SendMessage(chatId.toString(),
+                            "❌ Estado inválido. Selecciona una opción:");
+                    errorMsg.setReplyMarkup(createEpicStatusKeyboard());
+                    return errorMsg;
+                }
+                conversation.addData("status", message);
+
+                String[] args = {
+                        (String) conversation.getData("epicId"),
+                        (String) conversation.getData("title"),
+                        (String) conversation.getData("description"),
+                        (String) conversation.getData("status")
+                };
+
+                conversationManager.endConversation(chatId);
+                SendMessage response = taskIntegrationService.handleUpdateEpic(chatId, args);
+                response.setReplyMarkup(new ReplyKeyboardRemove(true));
+                return response;
+
+            default:
+                conversationManager.endConversation(chatId);
+                return new SendMessage(chatId.toString(), "❌ Error en la conversación.");
+        }
+    }
+
+    public SendMessage startDeleteEpicConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "DELETE_EPIC");
+        return new SendMessage(chatId.toString(),
+                "🗑️ *Eliminar Epic*\n\n" +
+                        "¿Cuál es el ID del epic que deseas eliminar?\n\n" +
+                        "⚠️ *Esta acción no se puede deshacer*\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleDeleteEpicConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleDeleteEpic(chatId, args);
+    }
+
+    // ========== TASK CONVERSATIONS ==========
+
     public SendMessage startCreateTaskConversation(Long chatId) {
         conversationManager.startConversation(chatId, "CREATE_TASK");
         return new SendMessage(chatId.toString(),
@@ -271,7 +461,6 @@ public class InteractiveTaskService {
                 }
                 conversation.addData("storyPoints", message);
 
-                // Crear la task con todos los datos
                 String[] args = {
                         (String) conversation.getData("title"),
                         (String) conversation.getData("description"),
@@ -280,9 +469,8 @@ public class InteractiveTaskService {
                         (String) conversation.getData("type"),
                         (String) conversation.getData("estimatedDeadline"),
                         (String) conversation.getData("realDeadline"),
-                        (String) conversation.getData("estimatedHours"),
-                        "0", // horas reales inicialmente 0
-                        (String) conversation.getData("storyPoints")
+                        (String) conversation.getData("storyPoints"),
+                        (String) conversation.getData("estimatedHours")
                 };
 
                 conversationManager.endConversation(chatId);
@@ -294,7 +482,27 @@ public class InteractiveTaskService {
         }
     }
 
-    // ========== OTRAS CONVERSACIONES SIMPLES ==========
+    public SendMessage startDeleteTaskConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "DELETE_TASK");
+        return new SendMessage(chatId.toString(),
+                "🗑️ *Eliminar Task*\n\n" +
+                        "¿Cuál es el ID de la task que deseas eliminar?\n\n" +
+                        "⚠️ *Esta acción no se puede deshacer*\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleDeleteTaskConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleDeleteTask(chatId, args);
+    }
+
+    // ========== TASK SPRINT CONVERSATIONS ==========
 
     public SendMessage startAddTaskToSprintConversation(Long chatId) {
         conversationManager.startConversation(chatId, "ADD_TASK_TO_SPRINT");
@@ -337,6 +545,49 @@ public class InteractiveTaskService {
         }
     }
 
+    public SendMessage startRemoveTaskFromSprintConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "REMOVE_TASK_FROM_SPRINT");
+        return new SendMessage(chatId.toString(),
+                "🔗 *Remover Task de Sprint*\n\n" +
+                        "Paso 1/2: ¿Cuál es el ID de la task?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleRemoveTaskFromSprintConversation(Long chatId, String message, ConversationState conversation) {
+        switch (conversation.getStepIndex()) {
+            case 0: // Task ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("taskId", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "🏃‍♂️ Paso 2/2: ¿Cuál es el ID del sprint?");
+
+            case 1: // Sprint ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("sprintId", message);
+
+                String[] args = {
+                        (String) conversation.getData("taskId"),
+                        (String) conversation.getData("sprintId")
+                };
+
+                conversationManager.endConversation(chatId);
+                return taskIntegrationService.handleRemoveTaskFromSprint(chatId, args);
+
+            default:
+                conversationManager.endConversation(chatId);
+                return new SendMessage(chatId.toString(), "❌ Error en la conversación.");
+        }
+    }
+
+    // ========== TASK ASSIGNMENT CONVERSATIONS ==========
+
     public SendMessage startAssignTaskConversation(Long chatId) {
         conversationManager.startConversation(chatId, "ASSIGN_TASK");
         return new SendMessage(chatId.toString(),
@@ -371,6 +622,47 @@ public class InteractiveTaskService {
 
                 conversationManager.endConversation(chatId);
                 return taskIntegrationService.handleAssignTaskToUser(chatId, args);
+
+            default:
+                conversationManager.endConversation(chatId);
+                return new SendMessage(chatId.toString(), "❌ Error en la conversación.");
+        }
+    }
+
+    public SendMessage startRemoveTaskAssignmentConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "REMOVE_TASK_ASSIGNMENT");
+        return new SendMessage(chatId.toString(),
+                "❌ *Remover Asignación de Task*\n\n" +
+                        "Paso 1/2: ¿Cuál es el ID de la task?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleRemoveTaskAssignmentConversation(Long chatId, String message, ConversationState conversation) {
+        switch (conversation.getStepIndex()) {
+            case 0: // Task ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("taskId", message);
+                conversation.nextStep();
+                return new SendMessage(chatId.toString(),
+                        "👤 Paso 2/2: ¿Cuál es el ID del usuario?");
+
+            case 1: // User ID
+                if (!isValidLong(message)) {
+                    return new SendMessage(chatId.toString(),
+                            "❌ ID inválido. Debe ser un número entero.");
+                }
+                conversation.addData("userId", message);
+
+                String[] args = {
+                        (String) conversation.getData("taskId"),
+                        (String) conversation.getData("userId")
+                };
+
+                conversationManager.endConversation(chatId);
+                return taskIntegrationService.handleRemoveTaskAssignment(chatId, args);
 
             default:
                 conversationManager.endConversation(chatId);
@@ -420,6 +712,67 @@ public class InteractiveTaskService {
         }
     }
 
+    // ========== SEARCH CONVERSATIONS ==========
+
+    public SendMessage startFindTaskByIdConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "FIND_TASK_BY_ID");
+        return new SendMessage(chatId.toString(),
+                "🔍 *Buscar Task por ID*\n\n" +
+                        "¿Cuál es el ID de la task?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleFindTaskByIdConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleGetTaskById(chatId, args);
+    }
+
+    public SendMessage startFindTasksByStatusConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "FIND_TASKS_BY_STATUS");
+
+        SendMessage msg = new SendMessage(chatId.toString(),
+                "🔍 *Buscar Tasks por Estado*\n\n" +
+                        "¿Cuál es el estado que deseas buscar?\n\n" +
+                        "Envía /cancel para cancelar.");
+        msg.setReplyMarkup(createStatusKeyboard());
+        return msg;
+    }
+
+    private SendMessage handleFindTasksByStatusConversation(Long chatId, String message, ConversationState conversation) {
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        SendMessage response = taskIntegrationService.handleFindTasksByStatus(chatId, args);
+        response.setReplyMarkup(new ReplyKeyboardRemove(true));
+        return response;
+    }
+
+    public SendMessage startFindTasksByPriorityConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "FIND_TASKS_BY_PRIORITY");
+
+        SendMessage msg = new SendMessage(chatId.toString(),
+                "🔍 *Buscar Tasks por Prioridad*\n\n" +
+                        "¿Cuál es la prioridad que deseas buscar?\n\n" +
+                        "Envía /cancel para cancelar.");
+        msg.setReplyMarkup(createPriorityKeyboard());
+        return msg;
+    }
+
+    private SendMessage handleFindTasksByPriorityConversation(Long chatId, String message, ConversationState conversation) {
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        SendMessage response = taskIntegrationService.handleFindTasksByPriority(chatId, args);
+        response.setReplyMarkup(new ReplyKeyboardRemove(true));
+        return response;
+    }
+
+    // ========== REPORT CONVERSATIONS ==========
+
     public SendMessage startCompletedTasksSprintConversation(Long chatId) {
         conversationManager.startConversation(chatId, "GET_COMPLETED_TASKS_SPRINT");
         return new SendMessage(chatId.toString(),
@@ -437,6 +790,44 @@ public class InteractiveTaskService {
         String[] args = { message };
         conversationManager.endConversation(chatId);
         return taskIntegrationService.handleShowCompletedTasksPerSprint(chatId, args);
+    }
+
+    public SendMessage startCompletedTasksUserConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "GET_COMPLETED_TASKS_USER");
+        return new SendMessage(chatId.toString(),
+                "📊 *Tasks Completadas por Usuario*\n\n" +
+                        "¿Cuál es el ID del usuario?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleCompletedTasksUserConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleShowCompletedTasksPerUserPerSprint(chatId, args);
+    }
+
+    public SendMessage startSprintHoursReportConversation(Long chatId) {
+        conversationManager.startConversation(chatId, "GET_SPRINT_HOURS_REPORT");
+        return new SendMessage(chatId.toString(),
+                "📊 *Reporte de Horas por Sprint*\n\n" +
+                        "¿Cuál es el ID del sprint?\n\n" +
+                        "Envía /cancel para cancelar.");
+    }
+
+    private SendMessage handleSprintHoursReportConversation(Long chatId, String message, ConversationState conversation) {
+        if (!isValidLong(message)) {
+            return new SendMessage(chatId.toString(),
+                    "❌ ID inválido. Debe ser un número entero.");
+        }
+
+        String[] args = { message };
+        conversationManager.endConversation(chatId);
+        return taskIntegrationService.handleGetSprintHoursReport(chatId, args);
     }
 
     public SendMessage startStartSprintConversation(Long chatId) {
@@ -474,17 +865,6 @@ public class InteractiveTaskService {
             conversationManager.endConversation(chatId);
             return new SendMessage(chatId.toString(), "❌ Error: " + e.getMessage());
         }
-    }
-
-    private SendMessage handleCompletedTasksUserConversation(Long chatId, String message, ConversationState conversation) {
-        if (!isValidLong(message)) {
-            return new SendMessage(chatId.toString(),
-                    "❌ ID inválido. Debe ser un número entero.");
-        }
-
-        String[] args = { message };
-        conversationManager.endConversation(chatId);
-        return taskIntegrationService.handleShowCompletedTasksPerUserPerSprint(chatId, args);
     }
 
     // ========== KEYBOARDS ==========
@@ -544,19 +924,41 @@ public class InteractiveTaskService {
         List<KeyboardRow> rows = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
-        row1.add("TODO");
-        row1.add("IN_PROGRESS");
+        row1.add("Backlog");
+        row1.add("ToDo");
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add("DONE");
-        row2.add("BLOCKED");
+        row2.add("InProgress");
+        row2.add("Done");
 
         KeyboardRow row3 = new KeyboardRow();
+        row3.add("Blocked");
         row3.add("Cancel");
 
         rows.add(row1);
         rows.add(row2);
         rows.add(row3);
+
+        keyboard.setKeyboard(rows);
+        keyboard.setResizeKeyboard(true);
+        keyboard.setOneTimeKeyboard(true);
+        return keyboard;
+    }
+
+    private ReplyKeyboardMarkup createEpicStatusKeyboard() {
+        ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup();
+        List<KeyboardRow> rows = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add("ToDo");
+        row1.add("InProgress");
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add("Done");
+        row2.add("Cancel");
+
+        rows.add(row1);
+        rows.add(row2);
 
         keyboard.setKeyboard(rows);
         keyboard.setResizeKeyboard(true);
@@ -599,5 +1001,9 @@ public class InteractiveTaskService {
 
     private boolean isValidType(String type) {
         return Arrays.asList("STORY", "BUG", "TASK", "EPIC").contains(type);
+    }
+
+    private boolean isValidEpicStatus(String status) {
+        return Arrays.asList("ToDo", "InProgress", "Done").contains(status);
     }
 }
