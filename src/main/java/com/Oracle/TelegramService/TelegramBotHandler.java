@@ -45,6 +45,7 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
             } catch (TelegramApiException e) {
                 System.err.println("Error al procesar comando: " + e.getMessage());
                 sendTextMessage(chatId, "⚠️ Error al procesar tu solicitud");
+                System.out.println("test"); //this line
             }
         }
     }
