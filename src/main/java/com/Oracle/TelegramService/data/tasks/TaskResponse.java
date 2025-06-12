@@ -1,9 +1,12 @@
 package com.Oracle.TelegramService.data.tasks;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Date;
 
 public record TaskResponse(
-        Long id,
+
+        @JsonProperty("taskId") Long id,
         String title,
         String description,
         Long epic_id,

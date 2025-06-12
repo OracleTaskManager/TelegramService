@@ -416,13 +416,13 @@ public class TelegramCommandService {
         // Manejar botones del teclado
         switch (command) {
             case "My Tasks":
-                return taskIntegrationService.handleGetMyTasks(chatId);
+                return taskIntegrationService.handleGetMyTasks(chatId); // we need to provide task ID as well
             case "Change Task Status":
-                return interactiveTaskService.startUpdateTaskStatusConversation(chatId);
+                return interactiveTaskService.startUpdateTaskStatusConversation(chatId); //don't show done tasks, maybe add "show all statuses tasks" or "Show previous and current taks"
             case "Find Task by ID":
-                return interactiveTaskService.startFindTaskByIdConversation(chatId);
+                return interactiveTaskService.startFindTaskByIdConversation(chatId); // the output shows null in id
             case "Find Tasks by Status":
-                return interactiveTaskService.startFindTasksByStatusConversation(chatId);
+                return interactiveTaskService.startFindTasksByStatusConversation(chatId); // same as in find by id
         }
 
         // Manejar comandos tradicionales

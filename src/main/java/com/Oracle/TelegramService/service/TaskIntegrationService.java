@@ -68,15 +68,15 @@ public class TaskIntegrationService {
                 return new SendMessage(chatId.toString(),
                         "Incorrect format. Please use /updatesprint <sprint_id> <name> <start_date> <end_date>");
             }
+            Long sprintId = Long.parseLong(args[0]);
 
             SprintUpdate sprintUpdate = new SprintUpdate(
-                    Long.parseLong(args[0]),
                     args[1],
-                    parseDate(args[2]).atStartOfDay(),
-                    parseDate(args[3]).atStartOfDay()
+                    Date.valueOf(parseDate(args[2])),
+                    Date.valueOf(parseDate(args[3]))
             );
 
-            ResponseEntity<SprintResponse> response = taskServiceClient.updateSprint("Bearer " + token, sprintUpdate);
+            ResponseEntity<SprintResponse> response = taskServiceClient.updateSprint("Bearer " + token, sprintId,sprintUpdate);
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 return new SendMessage(chatId.toString(), "✅ Sprint updated successfully!");
@@ -276,7 +276,7 @@ public class TaskIntegrationService {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 TaskResponse task = response.getBody();
                 StringBuilder message = new StringBuilder("📝 *Task Details:*\n\n")
-                        .append("*ID:* ").append(task.id()).append("\n")
+                        .append("*ID:* ").append(task.id()).append("\n") //perhaps no ID was assigned
                         .append("*Title:* ").append(task.title()).append("\n")
                         .append("*Description:* ").append(task.description()).append("\n")
                         .append("*Status:* ").append(task.status()).append("\n")
@@ -315,8 +315,11 @@ public class TaskIntegrationService {
 
                 StringBuilder message = new StringBuilder("📝 *All Tasks:*\n\n");
                 for (TaskResponse task : tasks) {
-                    message.append("*").append(task.id()).append(":* ").append(task.title())
-                            .append(" (").append(task.status()).append(")\n");
+                    //optional
+                    if (!"Done".equals(task.status())){
+                        message.append("*").append(task.id()).append(":* ").append(task.title())
+                                .append(" (").append(task.status()).append(")\n");
+                    }
                 }
 
                 SendMessage sendMessage = new SendMessage(chatId.toString(), message.toString());
@@ -347,8 +350,10 @@ public class TaskIntegrationService {
                 }
 
                 StringBuilder message = new StringBuilder("📝 *Your tasks:*\n\n");
-                for (TaskResponse task : tasks) {
-                    message.append("- ").append(task.title()).append(": ").append(task.description()).append("\n");
+                for (TaskResponse task : tasks) { // taskResponse
+                    if (!"Done".equals(task.status())){
+                        message.append(task.id()).append(" -> ").append(task.title()).append(": ").append(task.description()).append("\n");
+                    }
                 }
 
                 SendMessage sendMessage = new SendMessage(chatId.toString(), message.toString());
@@ -702,7 +707,7 @@ public class TaskIntegrationService {
                 StringBuilder message = new StringBuilder("👥 *Task Assignments:*\n\n");
                 for (TaskAssignmentResponse assignment : assignments) {
                     message.append("*Task ").append(assignment.taskId()).append(":* ")
-                            .append(assignment.taskTitle()).append("\n")
+                            .append(assignment.taskTitle()).append("\n") //tasktitle and username missing 10-june 20:10
                             .append("*Assigned to:* ").append(assignment.userName())
                             .append(" (ID: ").append(assignment.userId()).append(")\n\n");
                 }

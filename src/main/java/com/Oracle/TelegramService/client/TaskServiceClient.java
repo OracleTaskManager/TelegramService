@@ -24,9 +24,9 @@ public interface TaskServiceClient {
             @RequestHeader("Authorization") String token
     );
 
-    @PutMapping("/sprints/")
+    @PutMapping("/sprints/{sprintId}") //add id as param
     ResponseEntity<SprintResponse> updateSprint(
-            @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token, @PathVariable("sprintId") Long sprintId,
             @RequestBody SprintUpdate sprintUpdate
     );
 

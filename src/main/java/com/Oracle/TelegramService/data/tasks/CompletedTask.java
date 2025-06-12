@@ -1,11 +1,11 @@
 package com.Oracle.TelegramService.data.tasks;
 
-import java.time.LocalDateTime;
+import java.util.Date;
 
 public record CompletedTask(
         Long taskId,
         String taskTitle,
-        LocalDateTime completionDate,
+        Date completionDate,
         Integer realHours
 ) {
 }

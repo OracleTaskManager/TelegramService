@@ -874,19 +874,17 @@ public class InteractiveTaskService {
         List<KeyboardRow> rows = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
-        row1.add("LOW");
-        row1.add("MEDIUM");
+        row1.add("Low");
+        row1.add("Medium");
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add("HIGH");
-        row2.add("CRITICAL");
+        row2.add("High");
+        row2.add("Cancel");
 
-        KeyboardRow row3 = new KeyboardRow();
-        row3.add("Cancel");
 
         rows.add(row1);
         rows.add(row2);
-        rows.add(row3);
+
 
         keyboard.setKeyboard(rows);
         keyboard.setResizeKeyboard(true);
