@@ -196,7 +196,7 @@ public interface TaskServiceClient {
             @RequestBody TaskAssignmentRequest taskAssignment
     );
 
-    @GetMapping("/taskassignments/")
+    @GetMapping("/taskassignments/all-Telegram")
     ResponseEntity<List<TaskAssignmentResponse>> getAllTaskAssignments(
             @RequestHeader("Authorization") String token
     );
