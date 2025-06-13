@@ -40,12 +40,17 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
             try {
                 // Delegar todo el procesamiento al TelegramCommandService
                 SendMessage response = telegramCommandService.processCommand(chatId, messageText);
-                execute(response);
+
+                // Si el mensaje es demasiado largo, usar el método de división
+                if (response.getText().length() > 4096) {
+                    sendLongMessage(chatId, response.getText());
+                } else {
+                    execute(response);
+                }
 
             } catch (TelegramApiException e) {
                 System.err.println("Error al procesar comando: " + e.getMessage());
                 sendTextMessage(chatId, "⚠️ Error al procesar tu solicitud");
-                System.out.println("test"); //this line
             }
         }
     }
@@ -60,4 +65,20 @@ public class TelegramBotHandler extends TelegramLongPollingBot {
             System.err.println("Error sending message: " + e.getMessage());
         }
     }
+
+    private void sendLongMessage(Long chatId, String fullMessage) {
+        int maxLength = 4096; // Límite de caracteres de Telegram
+
+        for (int i = 0; i < fullMessage.length(); i += maxLength) {
+            String part = fullMessage.substring(i, Math.min(fullMessage.length(), i + maxLength));
+            SendMessage message = new SendMessage(chatId.toString(), part);
+            message.setParseMode("Markdown");
+            try {
+                execute(message);
+            } catch (TelegramApiException e) {
+                System.err.println("Error enviando mensaje: " + e.getMessage());
+            }
+        }
+    }
+
 }
